@@ -31,11 +31,13 @@ import (
 	"github.com/mgutz/ansi"
 )
 
+type colorfn func(string) string
+
 //
 // Concatenate pattern values and build
 // a single regexp to find any of them (pattern1 or pattern2 or ...)
 //
-func makePatternLevels(patternMap map[string]string) *regexp.Regexp {
+func makePatternLevels(patternMap map[string]colorfn) *regexp.Regexp {
 	keys := make([]string, 0, len(patternMap))
 	for key, _ := range patternMap {
 		keys = append(keys, key)
@@ -45,19 +47,19 @@ func makePatternLevels(patternMap map[string]string) *regexp.Regexp {
 }
 
 var (
-	color_custom   = ansi.ColorCode("white+h:blue")
-	color_info     = ansi.ColorCode("green+h:black")
-	color_warn     = ansi.ColorCode("yellow+h:black")
-	color_error    = ansi.ColorCode("red+h:black")
-	color_critical = ansi.ColorCode("yellow+h:red")
-	color_fatal    = ansi.ColorCode("orange+h:red")
-	color_debug    = ansi.ColorCode("cyan+h:black")
-	color_trace    = ansi.ColorCode("blue+h:black")
-	color_reset    = ansi.ColorCode("reset")
+	color_custom   = ansi.ColorFunc("white+h:blue")
+	color_info     = ansi.ColorFunc("green+h:black")
+	color_warn     = ansi.ColorFunc("yellow+h:black")
+	color_error    = ansi.ColorFunc("red+h:black")
+	color_critical = ansi.ColorFunc("yellow+h:red")
+	color_fatal    = ansi.ColorFunc("orange+h:red")
+	color_debug    = ansi.ColorFunc("cyan+h:black")
+	color_trace    = ansi.ColorFunc("blue+h:black")
 )
 
+
 var (
-	levels = map[string]string{
+	levels = map[string]colorfn{
 		"INFO":     color_info,
 		"WARN":     color_warn,
 		"WARNING":  color_warn,
@@ -80,14 +82,14 @@ func Colorize(reader io.Reader) {
 
 		if pattern_custom != nil {
 			if match := pattern_custom.FindString(line); len(match) > 0 {
-				fmt.Println(color_custom + line + color_reset)
+				fmt.Println(color_custom(line))
 				continue
 			}
 		}
 
 		if match := pattern_level.FindString(line); len(match) > 0 {
-			if color := levels[strings.TrimSpace(match)]; len(color) > 0 {
-				fmt.Println(color + line + color_reset)
+			if color, ok := levels[strings.TrimSpace(match)]; ok {
+				fmt.Println(color(line))
 				continue
 			}
 		}

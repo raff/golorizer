@@ -22,6 +22,7 @@ package main
 
 import (
 	"bufio"
+        "flag"
 	"fmt"
 	"io"
 	"os"
@@ -99,9 +100,16 @@ func Colorize(reader io.Reader) {
 }
 
 func main() {
+	var custom = flag.String("custom", "", "custom pattern")
+	var custom_color = flag.String("custom-color", "white+h:blue", "custom color (default white on blue")
 
-	if len(os.Args) > 1 {
-		pattern_custom = regexp.MustCompile(os.Args[1])
+        flag.Parse()
+
+	if len(*custom) > 1 {
+		pattern_custom = regexp.MustCompile(*custom)
+	}
+	if len(*custom_color) > 1 {
+		color_custom = ansi.ColorFunc(*custom_color)
 	}
 
 	Colorize(os.Stdin)

@@ -165,8 +165,8 @@ func (custom *Custom) Set(value string) error {
 	}
 }
 
-func (custom *Custom) String() string {
-	return ""
+func (custom *Custom) String() (_ string) {
+	return
 }
 
 //////////////////////////////////////////////////////////////////////////////

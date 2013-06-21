@@ -34,6 +34,11 @@ import (
 
 type colorfn func(string) string
 
+type pattern_color struct {
+	pattern *regexp.Regexp
+	color   colorfn
+}
+
 //
 // Concatenate pattern values and build
 // a single regexp to find any of them (pattern1 or pattern2 or ...)
@@ -74,27 +79,27 @@ var (
 	}
 
 	pattern_level  = makePatternLevels(levels)
-	pattern_custom = map[*regexp.Regexp]colorfn{}
+	pattern_custom = make([]pattern_color, 0, 0)
 )
 
 //
 // this is the main colorizer method, reads from reader and apply colors for matched patterns
 //
-func Colorize(reader io.Reader) {
+func Colorize(reader io.Reader, withLevels bool) {
 	scanner := bufio.NewScanner(reader)
 
 	for scanner.Scan() {
 		line := scanner.Text()
 		var color colorfn
 
-		for pattern, pcolor := range pattern_custom {
-			if match := pattern.FindString(line); len(match) > 0 {
-				color = pcolor
+		for _, pc := range pattern_custom {
+			if match := pc.pattern.FindString(line); len(match) > 0 {
+				color = pc.color
 				break
 			}
 		}
 
-		if color == nil {
+		if color == nil && withLevels {
 			if match := pattern_level.FindString(line); len(match) > 0 {
 				color = levels[strings.TrimSpace(match)]
 			}
@@ -153,7 +158,7 @@ type Custom struct {
 
 func (custom *Custom) Set(value string) error {
 	if pattern, err := regexp.Compile(value); err == nil {
-		pattern_custom[pattern] = custom.color.colorfunc
+		pattern_custom = append(pattern_custom, pattern_color{pattern, custom.color.colorfunc})
 		return nil
 	} else {
 		return err
@@ -164,7 +169,6 @@ func (custom *Custom) String() string {
 	return ""
 }
 
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // program entrypoint
@@ -173,9 +177,10 @@ func main() {
 	color := DefaultColor()
 	custom := Custom{&color}
 
+	withLevels := flag.Bool("levels", true, "enable/disable coloring of log levels")
 	flag.Var(&color, "color", "custom color")
 	flag.Var(&custom, "custom", "custom pattern")
 	flag.Parse()
 
-	Colorize(os.Stdin)
+	Colorize(os.Stdin, *withLevels)
 }

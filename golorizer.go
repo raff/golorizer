@@ -22,7 +22,7 @@ package main
 
 import (
 	"bufio"
-        "flag"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -47,8 +47,11 @@ func makePatternLevels(patternMap map[string]colorfn) *regexp.Regexp {
 	return regexp.MustCompile(" (" + strings.Join(keys, "|") + ") ")
 }
 
+const (
+	DEFAULT_CUSTOM_COLOR = "white+h:blue"
+)
+
 var (
-	color_custom   = ansi.ColorFunc("white+h:blue")
 	color_info     = ansi.ColorFunc("green+h:black")
 	color_warn     = ansi.ColorFunc("yellow+h:black")
 	color_error    = ansi.ColorFunc("red+h:black")
@@ -57,7 +60,6 @@ var (
 	color_debug    = ansi.ColorFunc("cyan+h:black")
 	color_trace    = ansi.ColorFunc("blue+h:black")
 )
-
 
 var (
 	levels = map[string]colorfn{
@@ -72,45 +74,108 @@ var (
 	}
 
 	pattern_level  = makePatternLevels(levels)
-	pattern_custom *regexp.Regexp
+	pattern_custom = map[*regexp.Regexp]colorfn{}
 )
 
+//
+// this is the main colorizer method, reads from reader and apply colors for matched patterns
+//
 func Colorize(reader io.Reader) {
 	scanner := bufio.NewScanner(reader)
 
 	for scanner.Scan() {
 		line := scanner.Text()
+		var color colorfn
 
-		if pattern_custom != nil {
-			if match := pattern_custom.FindString(line); len(match) > 0 {
-				fmt.Println(color_custom(line))
-				continue
+		for pattern, pcolor := range pattern_custom {
+			if match := pattern.FindString(line); len(match) > 0 {
+				color = pcolor
+				break
 			}
 		}
 
-		if match := pattern_level.FindString(line); len(match) > 0 {
-			if color, ok := levels[strings.TrimSpace(match)]; ok {
-				fmt.Println(color(line))
-				continue
+		if color == nil {
+			if match := pattern_level.FindString(line); len(match) > 0 {
+				color = levels[strings.TrimSpace(match)]
 			}
 		}
 
-		fmt.Println(line)
+		if color != nil {
+			fmt.Println(color(line))
+		} else {
+			fmt.Println(line)
+		}
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////////
+//
+// this is used to keep track of the current color to use for custom patterns
+//
+// for every -color={color} option it update the current color
+//
+type CurrentColor struct {
+	color     string
+	colorfunc colorfn
+}
+
+func (current *CurrentColor) Set(value string) error {
+	if current.color != value {
+		current.color = value
+		current.colorfunc = ansi.ColorFunc(current.color)
+	}
+
+	return nil
+}
+
+func (current *CurrentColor) String() string {
+	return current.color
+}
+
+func DefaultColor() CurrentColor {
+	color := CurrentColor{}
+	color.Set(DEFAULT_CUSTOM_COLOR)
+	return color
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// this is used to add custom patterns
+//
+// for every -pattern={pattern} adds a tuple (compiled-pattern, current-color)
+// to pattern_custom
+//
+// Note that the String() function doesn't return any value (no default)
+//
+type Custom struct {
+	color *CurrentColor
+}
+
+func (custom *Custom) Set(value string) error {
+	if pattern, err := regexp.Compile(value); err == nil {
+		pattern_custom[pattern] = custom.color.colorfunc
+		return nil
+	} else {
+		return err
+	}
+}
+
+func (custom *Custom) String() string {
+	return ""
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// program entrypoint
+//
 func main() {
-	var custom = flag.String("custom", "", "custom pattern")
-	var custom_color = flag.String("custom-color", "white+h:blue", "custom color (default white on blue")
+	color := DefaultColor()
+	custom := Custom{&color}
 
-        flag.Parse()
-
-	if len(*custom) > 1 {
-		pattern_custom = regexp.MustCompile(*custom)
-	}
-	if len(*custom_color) > 1 {
-		color_custom = ansi.ColorFunc(*custom_color)
-	}
+	flag.Var(&color, "color", "custom color")
+	flag.Var(&custom, "custom", "custom pattern")
+	flag.Parse()
 
 	Colorize(os.Stdin)
 }

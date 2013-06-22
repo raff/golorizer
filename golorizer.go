@@ -164,7 +164,6 @@ func (custom *Custom) String() string {
 	return ""
 }
 
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // program entrypoint
@@ -177,5 +176,17 @@ func main() {
 	flag.Var(&custom, "custom", "custom pattern")
 	flag.Parse()
 
-	Colorize(os.Stdin)
+	if len(flag.Args()) == 0 {
+		Colorize(os.Stdin)
+	} else {
+		for _, fname := range flag.Args() {
+			if f, err := os.Open(fname); err != nil {
+				fmt.Println(err)
+				continue
+			} else {
+				defer f.Close()
+				Colorize(f)
+			}
+		}
+	}
 }

@@ -183,4 +183,17 @@ func main() {
 	flag.Parse()
 
 	Colorize(os.Stdin, *withLevels)
+	if len(flag.Args()) == 0 {
+		Colorize(os.Stdin)
+	} else {
+		for _, fname := range flag.Args() {
+			if f, err := os.Open(fname); err != nil {
+				fmt.Println(err)
+				continue
+			} else {
+				defer f.Close()
+				Colorize(f)
+			}
+		}
+	}
 }

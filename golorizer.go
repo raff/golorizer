@@ -182,9 +182,8 @@ func main() {
 	flag.Var(&custom, "custom", "custom pattern")
 	flag.Parse()
 
-	Colorize(os.Stdin, *withLevels)
 	if len(flag.Args()) == 0 {
-		Colorize(os.Stdin)
+		Colorize(os.Stdin, *withLevels)
 	} else {
 		for _, fname := range flag.Args() {
 			if f, err := os.Open(fname); err != nil {
@@ -192,7 +191,7 @@ func main() {
 				continue
 			} else {
 				defer f.Close()
-				Colorize(f)
+				Colorize(f, *withLevels)
 			}
 		}
 	}

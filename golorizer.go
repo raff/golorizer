@@ -49,7 +49,7 @@ func makePatternLevels(patternMap map[string]colorfn) *regexp.Regexp {
 		keys = append(keys, key)
 	}
 
-	return regexp.MustCompile(" (" + strings.Join(keys, "|") + ") ")
+	return regexp.MustCompile("(^|[ \t]+)(" + strings.Join(keys, "|") + ") ")
 }
 
 const (
@@ -126,6 +126,14 @@ type CurrentColor struct {
 
 func (current *CurrentColor) Set(value string) error {
 	if current.color != value {
+		if !strings.Contains(value, ":") { // foreground:background
+			if value == "black" {
+				value += ":white"
+			} else {
+				value += ":black"
+			}
+		}
+
 		current.color = value
 		current.colorfunc = ansi.ColorFunc(current.color)
 	}
